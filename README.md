@@ -1,2 +1,3 @@
 # market
-vertex-cut graph partitioning system
+Vertex-cut graph partitioning distribute system
+Based on MPI and market model
