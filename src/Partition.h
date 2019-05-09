@@ -30,13 +30,27 @@ class Edge{
 public:
 	Vertex src;
 	Vertex dst;
+
+	bool operator<(const Edge& e) const{
+		if(this->src.ver < e.src.ver){
+			return true;
+		}else if(this->src.ver == e.src.ver){
+			return this->dst.ver < e.dst.ver;
+		}else{
+			return false;
+		}
+	}
 };
 
 class Partition{
 public:
 	void getVerticesAndDegree();
+	
 	void getVertexScore(InstancePartitions* ins_partition);
 	void getHotColdVertices(InstancePartitions* ins_partition, double hot, double cold); // 热点与冷点比例
+	
+	void getEdgeScore();
+	void getColdEdges(double cold); // 冷边所占比例
 
 public:
 	vector<Edge> edges;
@@ -49,6 +63,7 @@ public:
 
 	map<uint32_t, uint32_t> vertexPartDegree; // 局部度信息
 	map<uint32_t, double> vertexScore;        // 点的score
+	map<Edge, double> edgeSocre;              // 边的score
 };
 
 // 每一个进程所拥有的全部partition 类

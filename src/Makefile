@@ -1,9 +1,9 @@
 all:
 	# mpicxx -o market market.cpp -L /usr/local/lib -lglog -I /usr/local/include/glog
-	mpicxx -c units.cpp
-	mpicxx -c io.cpp
-	mpicxx -c Partition.cpp
-	mpicxx -c market.cpp
+	mpicxx -c -std=c++11 Partition.cpp
+	mpicxx -c -std=c++11 market.cpp
+	mpicxx -c -std=c++11 units.cpp
+	mpicxx -c -std=c++11 io.cpp
 
 	mpicxx -o market market.o Partition.o io.o units.o -L /usr/local/lib -lglog -I /usr/local/include/glog
 

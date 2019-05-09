@@ -118,6 +118,7 @@ void InstancePartitions::InstanceInit(){
 bool InstancePartitions::InstanceIteration(){
 	for(int i = 0; i < numparts; i++){
 		partitions[i]->getHotColdVertices(this, 0.3, 0.3);
+		partitions[i]->getColdEdges(0.3);
 	}
 }
 
@@ -158,9 +159,24 @@ void Partition::getHotColdVertices(InstancePartitions* ins_partition, double hot
 	getVertexScore(ins_partition);
 	vector<uint32_t> verticesTemp;
 	std::copy(vertices.begin(), vertices.end(), std::back_inserter(verticesTemp)); // 直接将set copy 到 vector
-	QuickSort(verticesTemp, vertexScore, 0, verticesTemp.size()-1);
+	QuickSortVertex(verticesTemp, vertexScore, 0, verticesTemp.size()-1);
 	hotVertices.assign(verticesTemp.end() - verticesTemp.size() * hot, verticesTemp.end());
 	coldVertices.assign(verticesTemp.begin(), verticesTemp.begin() + verticesTemp.size() * cold);
-	cout << "Task: " << procid << " hotVertices: " << hotVertices.size() << " coldVertices: " << coldVertices.size() << endl;
+	// cout << "Task: " << procid << " hotVertices: " << hotVertices.size() << " coldVertices: " << coldVertices.size() << endl;
 }
 
+// 获取每一条边的score（这里可以丰富策略）
+void Partition::getEdgeScore(){
+	vector<Edge>::iterator iter;
+	for(iter = edges.begin(); iter != edges.end(); iter++){
+		edgeSocre[*iter] = vertexScore[iter->src.ver] + vertexScore[iter->dst.ver];
+	}
+}
+
+// 获取冷边信息
+void Partition::getColdEdges(double cold){
+	getEdgeScore();
+	QuickSortEdge(edges, edgeSocre, 0, edges.size()-1);
+	coldEdges.assign(edges.begin(), edges.begin() + edges.size() * cold);
+	// cout << "Task: " << procid << " coldEdges: " << coldEdges.size() << endl;
+}
