@@ -1,7 +1,7 @@
 all:
 	# mpicxx -o market market.cpp -L /usr/local/lib -lglog -I /usr/local/include/glog
-	mpicxx -c -std=c++11 Partition.cpp
 	mpicxx -c -std=c++11 market.cpp
+	mpicxx -c -std=c++11 Partition.cpp
 	mpicxx -c -std=c++11 units.cpp
 	mpicxx -c -std=c++11 io.cpp
 

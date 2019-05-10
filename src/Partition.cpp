@@ -1,12 +1,18 @@
 #include "Partition.h"
 using namespace std;
 
-extern int procid, numprocs;
-
-InstancePartitions::InstancePartitions(uint32_t allparts, uint32_t numparts){
+InstancePartitions::InstancePartitions(uint32_t allparts, uint32_t* numparts){
 	this->allparts = allparts;
-	this->numparts = numparts;
-	for(int i = 0; i < numparts; i++){
+	uint32_t partsTemp = 0;
+	for(int i = 0; i < numprocs; i++){
+		this->numparts.push_back(numparts[i]);
+		if(procid == i){
+			this->startpart = partsTemp;
+		}
+		partsTemp += numparts[i];
+	}
+
+	for(int i = 0; i < numparts[procid]; i++){
 		Partition* partition = new Partition();
 		partitions.push_back(partition);
 	}
@@ -50,12 +56,12 @@ void InstancePartitions::getAllVerticesDegree(){
 }
 
 void InstancePartitions::getVRF(){
-	int numPartitionVertices[numparts];
-	for(int i = 0; i < numparts; i++){
+	int numPartitionVertices[numparts[procid]];
+	for(int i = 0; i < numparts[procid]; i++){
 		numPartitionVertices[i] = partitions[i]->vertices.size();
 	}
 	int numInstanceVertices = 0;
-	for(int i = 0; i < numparts; i++){
+	for(int i = 0; i < numparts[procid]; i++){
 		numInstanceVertices += numPartitionVertices[i];
 	}
 	int sumVertices;
@@ -65,19 +71,19 @@ void InstancePartitions::getVRF(){
 }
 
 void InstancePartitions::getBalance(){
-	int numPartitionEdges[numparts];
-	for(int i = 0; i < numparts; i++){
+	int numPartitionEdges[numparts[procid]];
+	for(int i = 0; i < numparts[procid]; i++){
 		numPartitionEdges[i] = partitions[i]->edges.size();
 	}
 	int recvCounts[numprocs];
-	MPI_Allgather(&numparts, 1, MPI_INT, recvCounts, 1, MPI_INT, MPI_COMM_WORLD);
+	MPI_Allgather(&numparts[procid], 1, MPI_INT, recvCounts, 1, MPI_INT, MPI_COMM_WORLD);
 	int rdisps[numprocs];
 	rdisps[0] = 0;
 	for(int i = 1; i < numprocs; i++){
 		rdisps[i] = rdisps[i-1] + recvCounts[i-1];
 	}
 	int numAllPartitionsEdges[allparts];
-	MPI_Allgatherv(numPartitionEdges, numparts, MPI_INT, \
+	MPI_Allgatherv(numPartitionEdges, numparts[procid], MPI_INT, \
 		numAllPartitionsEdges, recvCounts, rdisps, MPI_INT, MPI_COMM_WORLD);
 	// LOG(INFO) << "Get all partitions size";
 	int maxPartitionSize = 0;
@@ -102,7 +108,7 @@ void InstancePartitions::getBalance(){
 // 每个进程初始化
 void InstancePartitions::InstanceInit(){
 	// 对每个partition的初始化
-	for(int i = 0; i < numparts; i++){
+	for(int i = 0; i < numparts[procid]; i++){
 		partitions[i]->getVerticesAndDegree();
 	}
 
@@ -116,10 +122,22 @@ void InstancePartitions::InstanceInit(){
 
 // 每个进程迭代优化
 bool InstancePartitions::InstanceIteration(){
-	for(int i = 0; i < numparts; i++){
-		partitions[i]->getHotColdVertices(this, 0.3, 0.3);
-		partitions[i]->getColdEdges(0.3);
+	for(int i = 0; i < numparts[procid]; i++){
+		partitions[i]->getHotColdVertices(this, 0.1, 0.1);
+		partitions[i]->getColdEdges(0.1);
 	}
+	// print4debug(32);
+	getAllHotVertices();
+}
+
+void InstancePartitions::getAllHotVertices(){
+	allHotVertices.clear();
+	InstanceIndexStart.clear();
+	InstanceIndexEnd.clear();
+	PartitionIndexStart.clear();
+	PartitionIndexEnd.clear();
+
+
 }
 
 // 只要边发生变化，则执行该操作(每次迭代之后必须要更新)
@@ -179,4 +197,56 @@ void Partition::getColdEdges(double cold){
 	QuickSortEdge(edges, edgeSocre, 0, edges.size()-1);
 	coldEdges.assign(edges.begin(), edges.begin() + edges.size() * cold);
 	// cout << "Task: " << procid << " coldEdges: " << coldEdges.size() << endl;
+}
+
+// for debug
+void Partition::printHotVertices(){
+	vector<uint32_t>::iterator iter;
+	cout << "HotVertices of this partition is: " << endl;
+	for(iter = hotVertices.begin(); iter != hotVertices.end(); iter++){
+		cout << *iter << "\t\t" << vertexScore[*iter] << endl;
+	}
+}
+
+void Partition::printColdEdges(){
+	vector<Edge>::iterator iter;
+	cout << "ColdEdges of this partition is: " << endl;
+	for(iter = coldEdges.begin(); iter != coldEdges.end(); iter++){
+		cout << iter->src.ver << "\t\t" << iter->dst.ver << "\t\t" << edgeSocre[*iter] << endl;
+	}
+}
+
+void Partition::printAllVertices(){
+	vector<uint32_t> verticesTemp;
+	std::copy(vertices.begin(), vertices.end(), std::back_inserter(verticesTemp)); // 直接将set copy 到 vector
+	QuickSortVertex(verticesTemp, vertexScore, 0, verticesTemp.size()-1);
+	cout << "AllVertices of this partition is: " << endl;
+	vector<uint32_t>::iterator iter;
+	for(iter = verticesTemp.begin(); iter != verticesTemp.end(); iter++){
+		cout << *iter << "\t\t" << vertexScore[*iter] << endl;
+	}
+}
+
+void Partition::printAllEdges(){
+	cout << "AllEdges of this partition is: " << endl;
+	vector<Edge>::iterator iter;
+	for(iter = edges.begin(); iter != edges.end(); iter++){
+		cout << iter->src.ver << "\t\t" << iter->dst.ver << "\t\t" << edgeSocre[*iter] << endl;
+	}
+}
+
+void InstancePartitions::print4debug(int part){
+	int pid = -1, pidpart = -1;
+	if(part >= startpart && part < startpart + numparts[procid]){
+		pid = procid;
+		pidpart = part - startpart;
+	}
+	if(procid == pid){
+		cout << "Task: " << pid << " partition: " << pidpart << endl;
+		Partition* partition = partitions[pidpart];
+		// partition->printAllVertices();
+		partition->printHotVertices();
+		// partition->printAllEdges();
+		partition->printColdEdges();
+	}
 }

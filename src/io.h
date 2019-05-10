@@ -15,8 +15,13 @@
 
 using namespace std;
 
+extern int procid, numprocs;
+extern bool debug;
+
+class InstancePartitions;
+
 int load_edges_uint32(InstancePartitions* ins_partition, char* file_name);
 
-void print4debug(InstancePartitions* ins_partition);
+void printAllEdges4Debug(InstancePartitions* ins_partition);
 
 #endif

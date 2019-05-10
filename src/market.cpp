@@ -1,20 +1,6 @@
-#include <iostream>
-#include <mpi.h>
-#include <omp.h>
-#include <stdint.h>
-#include <string>
-#include <cstring>
-#include <cstdlib>
-#include <cstdio>
-#include <glog/logging.h>
-#include <unistd.h>
-
-#include "Partition.h"
-#include "io.h"
+#include "market.h"
 
 using namespace std;
-
-int procid, numprocs;
 
 int main(int argc, char* argv[])
 {
@@ -30,11 +16,12 @@ int main(int argc, char* argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
 
     uint32_t allparts = atoi(argv[2]);
-    uint32_t numparts = allparts / numprocs;
-    if(procid == numprocs - 1){
-    	numparts = allparts - numparts * (numprocs - 1);
+    uint32_t numparts[numprocs];
+    uint32_t numpartsTemp = allparts / numprocs;
+    for(int i = 0; i < numprocs - 1; i++){
+        numparts[i] = numpartsTemp;
     }
-    // LOG(INFO) << "Task " << procid << " has parts " << numparts;
+    numparts[numprocs - 1] = allparts - numpartsTemp * (numprocs - 1);
 
     InstancePartitions* ins_partition = new InstancePartitions(allparts, numparts);
 	int ret = load_edges_uint32(ins_partition, argv[1]);
@@ -43,7 +30,26 @@ int main(int argc, char* argv[])
     	return 1;
     }
 
-    // print4debug(ins_partition);
+    // 查看partitions是否正确
+    if(debug){
+        for(int i = 0; i < numprocs; i++){
+            if(procid == i){
+                cout << "Task: " << procid << endl;
+                cout << "allparts: " << ins_partition->allparts << endl;
+                cout << "numparts: ";
+                for(int j = 0; j < ins_partition->numparts.size(); j++){
+                    cout << numparts[j] << " ";
+                }
+                cout << endl;
+                cout << "startpart: " << ins_partition->startpart << endl;
+            }
+            else{
+                sleep(1);
+            }
+        }
+        // printAllEdges4Debug(ins_partition);
+    }
+    
     ins_partition->InstanceInit();
 
     ins_partition->InstanceIteration();

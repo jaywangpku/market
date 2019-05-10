@@ -1,8 +1,6 @@
 #include "io.h"
 using namespace std;
 
-extern int procid, numprocs;
-
 // 加载格式为uint32_t的数据
 int load_edges_uint32(InstancePartitions* ins_partition, char* file_name)
 {
@@ -41,11 +39,11 @@ int load_edges_uint32(InstancePartitions* ins_partition, char* file_name)
     fread(gen_edges_read, nedges, 2 * sizeof(uint32_t), input);
 
     // 每个进程读取边信息，初始化相关量
-    for(int i = 0, j = ins_partition->numparts; i < nedges * 2; i += 2, j++){
+    for(int i = 0, j = ins_partition->numparts[procid]; i < nedges * 2; i += 2, j++){
         Edge edge;
         edge.src.ver = (uint32_t)gen_edges_read[i];
         edge.dst.ver = (uint32_t)gen_edges_read[i+1];
-        ins_partition->partitions[j%ins_partition->numparts]->edges.push_back(edge);
+        ins_partition->partitions[j%ins_partition->numparts[procid]]->edges.push_back(edge);
 
         // 初始化度相关信息
         if(ins_partition->vertexDegree.count(edge.src.ver) == 0){
@@ -66,7 +64,8 @@ int load_edges_uint32(InstancePartitions* ins_partition, char* file_name)
     return 0;
 }
 
-void print4debug(InstancePartitions* ins_partition)
+// 输出全部的边信息用于debug，现已不用
+void printAllEdges4Debug(InstancePartitions* ins_partition)
 {
     for(int i = 0; i < numprocs; i++){
         if(procid == i){
