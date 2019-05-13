@@ -82,8 +82,8 @@ public:
 	void getAllVerticesDegree();
 	void getVRF();
 	void getBalance();
-
 	void getAllHotVertices();
+	void computeEdgesMatchPartitions();
 
 	void InstanceInit();
 
@@ -112,6 +112,8 @@ public:
 	vector<uint32_t> PartitionIndexStart; // partition所含热点的起始点（包含该点）
 	vector<uint32_t> PartitionIndexEnd;   // partition所含热点的终止点（不包含该点）
 	vector<uint32_t> PartitionIndexLen;   // partition所含热点的数量
+
+	map<Edge, int> coldEdges2Partition;   // 记录每一条边分配给了哪个partition
 
 	double balance_RSD = 0;
 	double balance_MAX_MIN = 0;

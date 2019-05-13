@@ -128,6 +128,7 @@ bool InstancePartitions::InstanceIteration(){
 	}
 	// print4debug(32);
 	getAllHotVertices();
+	computeEdgesMatchPartitions();
 }
 
 // 每个进程获取到全部的热点数据信息
@@ -244,6 +245,15 @@ void InstancePartitions::getAllHotVertices(){
 	}
 	indexTemp += PartitionIndexLen[lenRecv-1];
 	PartitionIndexEnd.push_back(indexTemp);
+}
+
+// 计算冷边的分配
+void InstancePartitions::computeEdgesMatchPartitions(){
+	map<Edge, int> coldEdges2Partition;
+	
+
+
+	
 }
 
 // 只要边发生变化，则执行该操作(每次迭代之后必须要更新)
