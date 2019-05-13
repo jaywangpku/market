@@ -106,10 +106,12 @@ public:
 	map<uint32_t, uint32_t> vertexDegree; // 每个进程保留全部点度信息
 
 	vector<uint32_t> allHotVertices;      // 收集全部partitions的hotVertices
+	vector<double> allHotVerticesScore;   // 所有热点对应的分值
 	vector<uint32_t> InstanceIndexStart;  // 进程所含热点的起始点（包含该点）
 	vector<uint32_t> InstanceIndexEnd;    // 进程所含热点的终止点（不包含该点）
 	vector<uint32_t> PartitionIndexStart; // partition所含热点的起始点（包含该点）
 	vector<uint32_t> PartitionIndexEnd;   // partition所含热点的终止点（不包含该点）
+	vector<uint32_t> PartitionIndexLen;   // partition所含热点的数量
 
 	double balance_RSD = 0;
 	double balance_MAX_MIN = 0;

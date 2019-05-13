@@ -130,14 +130,120 @@ bool InstancePartitions::InstanceIteration(){
 	getAllHotVertices();
 }
 
+// 每个进程获取到全部的热点数据信息
 void InstancePartitions::getAllHotVertices(){
 	allHotVertices.clear();
+	allHotVerticesScore.clear();
 	InstanceIndexStart.clear();
 	InstanceIndexEnd.clear();
 	PartitionIndexStart.clear();
 	PartitionIndexEnd.clear();
+	PartitionIndexLen.clear();
+	
+	// 热点信息构建
+	vector<uint32_t> sendArray;
+	for(int i = 0; i < partitions.size(); i++){
+		// PartitionIndexStart.push_back(sendArray.size());
+		for(int j = 0; j < partitions[i]->hotVertices.size(); j++){
+			sendArray.push_back(partitions[i]->hotVertices[j]);
+		}
+		// PartitionIndexEnd.push_back(sendArray.size());
+		PartitionIndexLen.push_back(partitions[i]->hotVertices.size());
+	}
 
+	if(debug){
+		if(procid == 0){
+			// for(int i = 0; i < PartitionIndexStart.size(); i++){
+			// 	cout << PartitionIndexStart[i] << endl;
+			// }
+			// for(int i = 0; i < PartitionIndexEnd.size(); i++){
+			// 	cout << PartitionIndexEnd[i] << endl;
+			// }
+			for(int i = 0; i < PartitionIndexLen.size(); i++){
+				cout << PartitionIndexLen[i] << endl;
+			}
+		}
+	}
 
+	// 热点信息传输
+	int sendcount = sendArray.size();
+	int recvcounts[numprocs];
+	MPI_Allgather(&sendcount, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+	
+	int lenRecv = 0;
+	for(int i = 0; i < numprocs; i++){
+		lenRecv += recvcounts[i];
+	}
+	int recvArray[lenRecv];
+	int displs[numprocs];
+	displs[0] = 0;
+	for(int i = 1; i < numprocs; i++){
+		displs[i] = displs[i-1] + recvcounts[i-1];
+	}
+	MPI_Allgatherv(sendArray.data(), sendcount, MPI_INT, recvArray, recvcounts, displs, MPI_INT, MPI_COMM_WORLD);
+	allHotVertices.reserve(lenRecv);
+	allHotVertices.assign(&recvArray[0], &recvArray[lenRecv]);
+
+	// 热点score信息传输
+	vector<double> sendArray_score;
+	for(int i = 0; i < partitions.size(); i++){
+		for(int j = 0; j < partitions[i]->hotVertices.size(); j++){
+			sendArray_score.push_back(partitions[i]->vertexScore[partitions[i]->hotVertices[j]]);
+		}
+	}
+	double recvArray_score[lenRecv];
+	MPI_Allgatherv(sendArray_score.data(), sendcount, MPI_DOUBLE, recvArray_score, recvcounts, displs, MPI_DOUBLE, MPI_COMM_WORLD);
+	allHotVerticesScore.reserve(lenRecv);
+	allHotVerticesScore.assign(&recvArray_score[0], &recvArray_score[lenRecv]);
+	
+	// Instance Index 信息构建
+	int indexTemp = 0;
+	InstanceIndexStart.push_back(indexTemp);
+	for(int i = 0; i < numprocs - 1; i++){
+		indexTemp += recvcounts[i];
+		InstanceIndexStart.push_back(indexTemp);
+		InstanceIndexEnd.push_back(indexTemp);
+	}
+	indexTemp += recvcounts[numprocs-1];
+	InstanceIndexEnd.push_back(indexTemp);
+
+	if(debug){
+		if(procid == 0){
+			for(int i = 0; i < InstanceIndexStart.size(); i++){
+				cout << InstanceIndexStart[i] << endl;
+			}
+			cout << endl;
+			for(int i = 0; i < InstanceIndexEnd.size(); i++){
+				cout << InstanceIndexEnd[i] << endl;
+			}
+		}
+	}
+
+	// Partition Index 信息传输构建
+	sendcount = PartitionIndexLen.size();
+	for(int i = 0; i < numprocs; i++){
+		recvcounts[i] = numparts[i];
+	}
+	lenRecv = allparts;
+	int recvArray_PartitionIndex[lenRecv];
+	displs[0] = 0;
+	for(int i = 1; i < numprocs; i++){
+		displs[i] = displs[i-1] + recvcounts[i-1];
+	}
+	MPI_Allgatherv(PartitionIndexLen.data(), sendcount, MPI_INT, recvArray_PartitionIndex, recvcounts, displs, MPI_INT, MPI_COMM_WORLD);
+	PartitionIndexLen.clear();
+	PartitionIndexLen.reserve(lenRecv);
+	PartitionIndexLen.assign(&recvArray_PartitionIndex[0], &recvArray_PartitionIndex[lenRecv]);
+
+	indexTemp = 0;
+	PartitionIndexStart.push_back(indexTemp);
+	for(int i = 0; i < lenRecv - 1; i++){
+		indexTemp += PartitionIndexLen[i];
+		PartitionIndexStart.push_back(indexTemp);
+		PartitionIndexEnd.push_back(indexTemp);
+	}
+	indexTemp += PartitionIndexLen[lenRecv-1];
+	PartitionIndexEnd.push_back(indexTemp);
 }
 
 // 只要边发生变化，则执行该操作(每次迭代之后必须要更新)
