@@ -25,5 +25,6 @@ class InstancePartitions;
 
 void QuickSortVertex(vector<uint32_t>& vertices, map<uint32_t, double>& vertexScore, int start, int end);
 void QuickSortEdge(vector<Edge>& edges, map<Edge, double>& edgeScore, int start, int end);
+void QuickSortEdgePart(vector<Edge>& edges, map<Edge, int>& edgePart, int start, int end);
 
 #endif

@@ -129,6 +129,8 @@ bool InstancePartitions::InstanceIteration(){
 	// print4debug(32);
 	getAllHotVertices();
 	computeEdgesMatchPartitions();
+	distributeAllColdEdges();
+
 }
 
 // 每个进程获取到全部的热点数据信息
@@ -250,31 +252,37 @@ void InstancePartitions::getAllHotVertices(){
 // 计算冷边的分配
 void InstancePartitions::computeEdgesMatchPartitions(){
 	// 对每一条边进行处理
+	int all = 0, change = 0;
 	for(int i = 0; i < partitions.size(); i++){
 		for(int j = 0; j < partitions[i]->coldEdges.size(); j++){
 			Edge eTemp = partitions[i]->coldEdges[j];
 			double matchScores[allparts];
 			int part = 0;
+			bool isChanged = false;
 			for(int k = 0; k < allparts; k++){
 				matchScores[k] = computerMatchScore(eTemp, k);
 				if(matchScores[k] > matchScores[part]){
+					isChanged = true;
 					part = k;
 				}
 			}
-			coldEdges2Partition[eTemp] = part;
+			all++;
+			if(isChanged || matchScores[0] > 0){
+				coldEdges2Partition[eTemp] = part;
+				change++;
+			}
+			else{
+				coldEdges2Partition[eTemp] = i + startpart;
+			}
 		}
 	}
 
-	if(procid == 0){
-		int all = 0, change = 0;
+	if(procid == 1){
 		map<Edge, int>::iterator iter;
 		for(iter = coldEdges2Partition.begin(); iter != coldEdges2Partition.end(); iter++){
-			all++;
-			if(iter->second){
-				change++;
-			}
+			// cout << iter->second << endl;
 		}
-		cout << "Task: " << procid << ". all cold edges: " << all << ". need to change: " << change << endl;
+		// cout << "Task: " << procid << ". all cold edges: " << all << ". need to change: " << change << endl;
 	}
 }
 
@@ -293,6 +301,53 @@ double InstancePartitions::computerMatchScore(Edge e, int part){
 		}
 	}
 	return score;
+}
+
+// 对冷边进行分发
+void InstancePartitions::distributeAllColdEdges(){
+	vector<Edge> coldEdges;
+	map<Edge, int>::iterator iter;
+	for(iter = coldEdges2Partition.begin(); iter != coldEdges2Partition.end(); iter++){
+		coldEdges.push_back(iter->first);
+	}
+	QuickSortEdgePart(coldEdges, coldEdges2Partition, 0, coldEdges.size()-1);  // 将冷边按partition序排列
+	// 全局更新交换边信息
+	uint32_t sendArray[coldEdges.size()*2];
+	for(int i = 0; i < coldEdges.size(); i++){
+		sendArray[i*2] = coldEdges[i].src.ver;
+		sendArray[i*2+1] = coldEdges[i].dst.ver;
+	}
+	
+	int sendCounts[numprocs] = {0};
+	int endparts[numprocs];
+	endparts[0] = numparts[0];
+	for(int i = 1; i < numprocs; i++){
+		endparts[i] = numparts[i] + endparts[i-1];
+	}
+	int index = 0;
+	int k = 0;
+	for(int i = 0; i < coldEdges.size(); i++){
+		
+		if(coldEdges2Partition[coldEdges[i]] < endparts[k]){
+			index++;
+		}
+		else{
+			sendCounts[k] = index;
+			k++;
+			i--;                         // 刚才不满足条件的这个边要重新考虑
+			index = 0;
+		}
+	}
+	sendCounts[k] = index;
+
+	int recvCounts[numprocs] = {0};
+	
+	
+
+
+	// uint32_t recvEdges[];
+	// int recvCounts[4];
+	// MPI_Alltoallv(coldEdges.data(), );
 }
 
 // 只要边发生变化，则执行该操作(每次迭代之后必须要更新)

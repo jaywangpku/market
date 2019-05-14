@@ -82,9 +82,14 @@ public:
 	void getAllVerticesDegree();
 	void getVRF();
 	void getBalance();
+
 	void getAllHotVertices();
+
 	void computeEdgesMatchPartitions();
 	double computerMatchScore(Edge e, int part);
+
+	void distributeAllColdEdges();
+	void updateAllPartitions();
 
 	void InstanceInit();
 

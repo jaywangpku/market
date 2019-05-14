@@ -72,3 +72,39 @@ void QuickSortEdge(vector<Edge>& edges, map<Edge, double>& edgeScore, int start,
     QuickSortEdge(edges, edgeScore, start, startTemp-1);
     QuickSortEdge(edges, edgeScore, startTemp+1, end);
 }
+
+void QuickSortEdgePart(vector<Edge>& edges, map<Edge, int>& edgePart, int start, int end){
+    if(start >= end){
+        return;
+    }
+    int rand = start; 
+    Edge temp = edges[start];
+    int startTemp = start;
+    int endTemp = end;
+    bool flag = false;
+    while(startTemp < endTemp){
+        if(flag){
+            while(edgePart[edges[startTemp]] <= edgePart[temp] && startTemp < endTemp){
+                startTemp++;
+            }
+            if(startTemp < endTemp){
+                edges[rand] = edges[startTemp];
+                rand = startTemp;
+            }
+            flag = false;
+        }
+        else{
+            while(edgePart[edges[endTemp]] >= edgePart[temp] && startTemp < endTemp){
+                endTemp--;
+            }
+            if(startTemp < endTemp){
+                edges[rand] = edges[endTemp];
+                rand = endTemp;
+            }
+            flag = true;
+        }
+    }
+    edges[startTemp] = temp;
+    QuickSortEdgePart(edges, edgePart, start, startTemp-1);
+    QuickSortEdgePart(edges, edgePart, startTemp+1, end);
+}
