@@ -249,11 +249,50 @@ void InstancePartitions::getAllHotVertices(){
 
 // 计算冷边的分配
 void InstancePartitions::computeEdgesMatchPartitions(){
-	map<Edge, int> coldEdges2Partition;
-	
+	// 对每一条边进行处理
+	for(int i = 0; i < partitions.size(); i++){
+		for(int j = 0; j < partitions[i]->coldEdges.size(); j++){
+			Edge eTemp = partitions[i]->coldEdges[j];
+			double matchScores[allparts];
+			int part = 0;
+			for(int k = 0; k < allparts; k++){
+				matchScores[k] = computerMatchScore(eTemp, k);
+				if(matchScores[k] > matchScores[part]){
+					part = k;
+				}
+			}
+			coldEdges2Partition[eTemp] = part;
+		}
+	}
 
+	if(procid == 0){
+		int all = 0, change = 0;
+		map<Edge, int>::iterator iter;
+		for(iter = coldEdges2Partition.begin(); iter != coldEdges2Partition.end(); iter++){
+			all++;
+			if(iter->second){
+				change++;
+			}
+		}
+		cout << "Task: " << procid << ". all cold edges: " << all << ". need to change: " << change << endl;
+	}
+}
 
-	
+// 计算一条边与partition的match score
+// 可丰富策略
+double InstancePartitions::computerMatchScore(Edge e, int part){
+	double score = 0.0;
+	uint32_t src = e.src.ver;
+	uint32_t dst = e.dst.ver;
+	for(int i = PartitionIndexStart[part]; i < PartitionIndexEnd[part]; i++){
+		if(src == allHotVertices[i]){
+			score += allHotVerticesScore[i];
+		}
+		if(dst == allHotVertices[i]){
+			score += allHotVerticesScore[i];
+		}
+	}
+	return score;
 }
 
 // 只要边发生变化，则执行该操作(每次迭代之后必须要更新)

@@ -84,6 +84,7 @@ public:
 	void getBalance();
 	void getAllHotVertices();
 	void computeEdgesMatchPartitions();
+	double computerMatchScore(Edge e, int part);
 
 	void InstanceInit();
 
