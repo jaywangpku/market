@@ -10,6 +10,7 @@
 #include <mpi.h>
 #include <glog/logging.h>
 #include <cmath>
+#include <iterator>
 
 #include "units.h"
 
@@ -89,6 +90,7 @@ public:
 	double computerMatchScore(Edge e, int part);
 
 	void distributeAllColdEdges();
+	void updateAllEdges(uint32_t* updateEdges, int len);
 	void updateAllPartitions();
 
 	void InstanceInit();

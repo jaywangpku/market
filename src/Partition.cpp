@@ -123,14 +123,14 @@ void InstancePartitions::InstanceInit(){
 // 每个进程迭代优化
 bool InstancePartitions::InstanceIteration(){
 	for(int i = 0; i < numparts[procid]; i++){
-		partitions[i]->getHotColdVertices(this, 0.1, 0.1);
-		partitions[i]->getColdEdges(0.1);
+		partitions[i]->getHotColdVertices(this, 0.3, 0.3);
+		partitions[i]->getColdEdges(0.3);
 	}
 	// print4debug(32);
 	getAllHotVertices();
 	computeEdgesMatchPartitions();
 	distributeAllColdEdges();
-
+	updateAllPartitions();
 }
 
 // 每个进程获取到全部的热点数据信息
@@ -312,10 +312,11 @@ void InstancePartitions::distributeAllColdEdges(){
 	}
 	QuickSortEdgePart(coldEdges, coldEdges2Partition, 0, coldEdges.size()-1);  // 将冷边按partition序排列
 	// 全局更新交换边信息
-	uint32_t sendArray[coldEdges.size()*2];
+	uint32_t sendArray[coldEdges.size()*3];
 	for(int i = 0; i < coldEdges.size(); i++){
-		sendArray[i*2] = coldEdges[i].src.ver;
-		sendArray[i*2+1] = coldEdges[i].dst.ver;
+		sendArray[i*3] = coldEdges[i].src.ver;
+		sendArray[i*3+1] = coldEdges[i].dst.ver;
+		sendArray[i*3+2] = coldEdges2Partition[coldEdges[i]];
 	}
 	
 	int sendCounts[numprocs] = {0};
@@ -332,22 +333,101 @@ void InstancePartitions::distributeAllColdEdges(){
 			index++;
 		}
 		else{
-			sendCounts[k] = index;
+			sendCounts[k] = index * 3;
 			k++;
 			i--;                         // 刚才不满足条件的这个边要重新考虑
 			index = 0;
 		}
 	}
-	sendCounts[k] = index;
+	sendCounts[k] = index * 3;
+	
+	// for(int i = 0; i < numprocs; i++){
+	// 	if(procid == i){
+	// 		cout << "Task: " << procid <<" ";
+	// 		for(int j = 0; j < numprocs; j++){
+	// 			cout << sendCounts[j] << " ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	else{
+	// 		sleep(1);
+	// 	}
+	// }
 
 	int recvCounts[numprocs] = {0};
+	MPI_Alltoall(sendCounts, 1, MPI_INT, recvCounts, 1, MPI_INT, MPI_COMM_WORLD);
 	
-	
+	// MPI_Barrier(MPI_COMM_WORLD);
+	// for(int i = 0; i < numprocs; i++){
+	// 	if(procid == i){
+	// 		cout << "Task: " << procid <<" ";
+	// 		for(int j = 0; j < numprocs; j++){
+	// 			cout << recvCounts[j] << " ";
+	// 		}
+	// 		cout << endl;
+	// 	}
+	// 	else{
+	// 		sleep(1);
+	// 	}
+	// }
 
+	int sdispls[numprocs];
+	sdispls[0] = 0;
+	for(int i = 1; i < numprocs; i++){
+		sdispls[i] = sdispls[i-1] + sendCounts[i-1];
+	}
 
-	// uint32_t recvEdges[];
-	// int recvCounts[4];
-	// MPI_Alltoallv(coldEdges.data(), );
+	int rdispls[numprocs];
+	rdispls[0] = 0;
+	for(int i = 1; i < numprocs; i++){
+		rdispls[i] = rdispls[i-1] + recvCounts[i-1];
+	}
+
+	int lenRecv = 0;
+	for(int i = 0; i < numprocs; i++){
+		lenRecv += recvCounts[i];
+	}
+
+	uint32_t recvArray[lenRecv];
+	MPI_Alltoallv(sendArray, sendCounts, sdispls, MPI_INT, recvArray, recvCounts, rdispls, MPI_INT, MPI_COMM_WORLD);
+
+	// if(procid == 0){
+	// 	for(int i = 0; i < lenRecv; i+=3){
+	// 		cout << recvArray[i] << " " << recvArray[i+1] << " " << recvArray[i+2] << endl;
+	// 	}
+	// }
+	updateAllEdges(recvArray, lenRecv);
+}
+
+// 更新边信息
+void InstancePartitions::updateAllEdges(uint32_t* updateEdges, int len){
+	// 目前edges最前面的就是冷边
+	// 后期可在选出冷边时就将其删除
+	vector<Edge> edgesTemp;
+	for(int i = 0; i < partitions.size(); i++){
+		edgesTemp.clear();
+		edgesTemp.assign(partitions[i]->edges.begin() + partitions[i]->coldEdges.size(), partitions[i]->edges.end());
+		partitions[i]->edges.clear();
+		partitions[i]->edges.assign(edgesTemp.begin(), edgesTemp.end());
+	}
+	// 将新边分发
+	for(int i = 0; i < len; i+=3){
+		Edge e;
+		e.src.ver = updateEdges[i];
+		e.dst.ver = updateEdges[i+1];
+		partitions[updateEdges[i+2]-startpart]->edges.push_back(e);
+	}
+}
+
+// partition全局状态更新
+void InstancePartitions::updateAllPartitions(){
+	// 更新点集与点的局部度数
+	for(int i = 0; i < numparts[procid]; i++){
+		partitions[i]->getVerticesAndDegree();
+	}
+	// 更新指标
+	getVRF();
+	getBalance();
 }
 
 // 只要边发生变化，则执行该操作(每次迭代之后必须要更新)

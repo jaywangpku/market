@@ -49,11 +49,16 @@ int main(int argc, char* argv[])
         }
         // printAllEdges4Debug(ins_partition);
     }
-    
+
     ins_partition->InstanceInit();
 
-    ins_partition->InstanceIteration();
     
+    for(int i = 0; i < 100; i++){
+        if(procid ==0){
+            cout << "VRF: " << ins_partition->VRF << endl;
+        }
+        ins_partition->InstanceIteration();
+    }
     
     
     MPI_Finalize();
