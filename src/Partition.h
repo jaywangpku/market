@@ -104,7 +104,7 @@ public:
 public:
 	
 	uint32_t allparts;                    // 总partitions数
-    vector<uint32_t> numparts;            // 每个进程partitions数
+	vector<uint32_t> numparts;            // 每个进程partitions数
 	uint32_t startpart;                   // 本进程起始part值
 
 	uint32_t nedges_global;               // 全部边数

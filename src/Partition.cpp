@@ -123,8 +123,8 @@ void InstancePartitions::InstanceInit(){
 // 每个进程迭代优化
 bool InstancePartitions::InstanceIteration(){
 	for(int i = 0; i < numparts[procid]; i++){
-		partitions[i]->getHotColdVertices(this, 0.3, 0.3);
-		partitions[i]->getColdEdges(0.3);
+		partitions[i]->getHotColdVertices(this, 0.5, 0.5);
+		partitions[i]->getColdEdges(0.5);
 	}
 	// print4debug(32);
 	getAllHotVertices();
@@ -135,13 +135,14 @@ bool InstancePartitions::InstanceIteration(){
 
 // 每个进程获取到全部的热点数据信息
 void InstancePartitions::getAllHotVertices(){
-	allHotVertices.clear();
-	allHotVerticesScore.clear();
-	InstanceIndexStart.clear();
-	InstanceIndexEnd.clear();
-	PartitionIndexStart.clear();
-	PartitionIndexEnd.clear();
-	PartitionIndexLen.clear();
+	// 每一轮之后统一处理
+	// allHotVertices.clear();
+	// allHotVerticesScore.clear();
+	// InstanceIndexStart.clear();
+	// InstanceIndexEnd.clear();
+	// PartitionIndexStart.clear();
+	// PartitionIndexEnd.clear();
+	// PartitionIndexLen.clear();
 	
 	// 热点信息构建
 	vector<uint32_t> sendArray;
@@ -305,6 +306,7 @@ double InstancePartitions::computerMatchScore(Edge e, int part){
 
 // 对冷边进行分发
 void InstancePartitions::distributeAllColdEdges(){
+	// coldEdges2Partition.clear();
 	vector<Edge> coldEdges;
 	map<Edge, int>::iterator iter;
 	for(iter = coldEdges2Partition.begin(); iter != coldEdges2Partition.end(); iter++){
@@ -428,11 +430,29 @@ void InstancePartitions::updateAllPartitions(){
 	// 更新指标
 	getVRF();
 	getBalance();
+	// 清空全部中间信息
+	for(int i = 0; i < partitions.size(); i++){
+		partitions[i]->hotVertices.clear();
+		partitions[i]->coldVertices.clear();
+		partitions[i]->hotEdges.clear();
+		partitions[i]->coldEdges.clear();
+		partitions[i]->vertexScore.clear();
+		partitions[i]->edgeSocre.clear();
+	}
+	allHotVertices.clear();
+	allHotVerticesScore.clear();
+	InstanceIndexStart.clear();
+	InstanceIndexEnd.clear();
+	PartitionIndexStart.clear();
+	PartitionIndexEnd.clear();
+	PartitionIndexLen.clear();
+	coldEdges2Partition.clear();  // 这个很关键
 }
 
 // 只要边发生变化，则执行该操作(每次迭代之后必须要更新)
 void Partition::getVerticesAndDegree(){
 	set<uint32_t> t;
+	vertices.clear();
 	vertexPartDegree.clear();
 	for(int i = 0; i < edges.size(); i++){
 		t.insert(edges[i].src.ver);
