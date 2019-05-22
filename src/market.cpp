@@ -51,30 +51,54 @@ int main(int argc, char* argv[])
     }
 
     ins_partition->InstanceInit();
-    
-    for(int i = 0; i < 100; i++){
-        if(procid ==0){
-            cout << "VRF: " << ins_partition->VRF << endl;
-            cout << "Balance_RSD: " << ins_partition->balance_RSD << endl;
-            cout << "Balance_MAX_MIN: " << ins_partition->balance_MAX_MIN << endl;
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-        int alledges = 0;
-        for(int i = 0; i < ins_partition->partitions.size(); i++){
-            alledges += ins_partition->partitions[i]->edges.size();
-        }
-        for(int j = 0; j < numprocs; j++){
-            if(procid == j){
-                cout << alledges << " ";
-            }
-            else{
-                sleep(1);
-            }
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-        cout << endl;
-        ins_partition->InstanceIteration();
+
+    if(procid ==0){
+        cout << "VRF: " << ins_partition->VRF << endl;
+        cout << "Balance_RSD: " << ins_partition->balance_RSD << endl;
+        cout << "Balance_MAX_MIN: " << ins_partition->balance_MAX_MIN << endl;
     }
+
+    ins_partition->InstanceExchange();
+
+    if(procid ==0){
+        cout << "VRF: " << ins_partition->VRF << endl;
+        cout << "Balance_RSD: " << ins_partition->balance_RSD << endl;
+        cout << "Balance_MAX_MIN: " << ins_partition->balance_MAX_MIN << endl;
+    }
+
+    // ins_partition->InstanceIteration();
+
+    // if(procid ==0){
+    //     cout << "VRF: " << ins_partition->VRF << endl;
+    //     cout << "Balance_RSD: " << ins_partition->balance_RSD << endl;
+    //     cout << "Balance_MAX_MIN: " << ins_partition->balance_MAX_MIN << endl;
+    // }
+    
+    // for(int i = 0; i < 100; i++){
+    //     if(procid ==0){
+    //         cout << "VRF: " << ins_partition->VRF << endl;
+    //         cout << "Balance_RSD: " << ins_partition->balance_RSD << endl;
+    //         cout << "Balance_MAX_MIN: " << ins_partition->balance_MAX_MIN << endl;
+    //     }
+    //     MPI_Barrier(MPI_COMM_WORLD);
+    //     int alledges = 0;
+    //     for(int i = 0; i < ins_partition->partitions.size(); i++){
+    //         alledges += ins_partition->partitions[i]->edges.size();
+    //     }
+    //     for(int j = 0; j < numprocs; j++){
+    //         if(procid == j){
+    //             cout << alledges << " ";
+    //         }
+    //         else{
+    //             sleep(0.3);
+    //         }
+    //     }
+    //     MPI_Barrier(MPI_COMM_WORLD);
+    //     if(procid == 0){
+    //         cout << endl << endl;
+    //     }
+    //     ins_partition->InstanceIteration();
+    // }
     
     MPI_Finalize();
     google::ShutdownGoogleLogging();

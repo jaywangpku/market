@@ -74,6 +74,9 @@ public:
 	map<uint32_t, uint32_t> vertexPartDegree; // 局部度信息
 	map<uint32_t, double> vertexScore;        // 点的score
 	map<Edge, double> edgeSocre;              // 边的score
+
+	// 小度点交换阶段
+	vector<uint32_t> smallDegreeVertices;     // 该partition的小度点集合
 };
 
 // 每一个进程所拥有的全部partition 类
@@ -94,12 +97,19 @@ public:
 	void updateAllPartitions();
 
 	void InstanceInit();
+	void InstanceExchange();
 
 	bool InstanceIteration(); 
 	bool InstanceIteration(int times);
 
 	// for debug
 	void print4debug(int part);           // 全局第几个partition
+
+	// 小度点交换阶段
+	void getSmallDegreeVertices(uint32_t degree);
+	void getEdges2Partition(uint32_t degree);
+	void exchangeAllEdges(map<Edge, int>& Edges2Partition);  // 接口可重用
+
 
 public:
 	
@@ -122,6 +132,9 @@ public:
 	vector<uint32_t> PartitionIndexLen;   // partition所含热点的数量
 
 	map<Edge, int> coldEdges2Partition;   // 记录每一条边分配给了哪个partition
+
+	// 小度点交换阶段
+	map<Edge, int> Edges2Partition;
 
 	double balance_RSD = 0;
 	double balance_MAX_MIN = 0;

@@ -105,6 +105,101 @@ void InstancePartitions::getBalance(){
 	// LOG(INFO) << "balance_MAX_MIN: " << balance_MAX_MIN << " balance_RSD: " << balance_RSD << endl;
 }
 
+// 将小度数点全局分配
+void InstancePartitions::getSmallDegreeVertices(uint32_t degree){
+	map<uint32_t, uint32_t>::iterator iter;
+	for(iter = vertexDegree.begin(); iter != vertexDegree.end(); iter++){
+		if(iter->second > degree){
+			continue;
+		}
+		uint32_t part = iter->first % allparts;
+		if(part >= startpart && part < startpart + numparts[procid]){
+			partitions[part - startpart]->smallDegreeVertices.push_back(iter->first);
+		}
+	}
+}
+
+// 小度点交换阶段，获取每条边对应partition
+void InstancePartitions::getEdges2Partition(uint32_t degree){
+	for(int i = 0; i < partitions.size(); i++){
+		for(int j = 0; j < partitions[i]->edges.size(); j++){
+			uint32_t ver = vertexDegree[partitions[i]->edges[j].src.ver] < vertexDegree[partitions[i]->edges[j].dst.ver] ? \
+							partitions[i]->edges[j].src.ver : partitions[i]->edges[j].dst.ver;
+			Edges2Partition[partitions[i]->edges[j]] = ver % allparts;
+		}
+	}
+}
+
+// 小度点交换阶段，分发全部的边
+void InstancePartitions::exchangeAllEdges(map<Edge, int>& Edges2Partition){
+	vector<Edge> coldEdges;
+	map<Edge, int>::iterator iter;
+	for(iter = Edges2Partition.begin(); iter != Edges2Partition.end(); iter++){
+		coldEdges.push_back(iter->first);
+	}
+	QuickSortEdgePart(coldEdges, Edges2Partition, 0, coldEdges.size()-1);  // 将冷边按partition序排列
+	// 全局更新交换边信息
+	uint32_t sendArray[coldEdges.size()*3];
+	for(int i = 0; i < coldEdges.size(); i++){
+		sendArray[i*3] = coldEdges[i].src.ver;
+		sendArray[i*3+1] = coldEdges[i].dst.ver;
+		sendArray[i*3+2] = Edges2Partition[coldEdges[i]];
+	}
+	
+	int sendCounts[numprocs] = {0};
+	int endparts[numprocs];
+	endparts[0] = numparts[0];
+	for(int i = 1; i < numprocs; i++){
+		endparts[i] = numparts[i] + endparts[i-1];
+	}
+	int index = 0;
+	int k = 0;
+	for(int i = 0; i < coldEdges.size(); i++){
+		
+		if(Edges2Partition[coldEdges[i]] < endparts[k]){
+			index++;
+		}
+		else{
+			sendCounts[k] = index * 3;
+			k++;
+			i--;                         // 刚才不满足条件的这个边要重新考虑
+			index = 0;
+		}
+	}
+	sendCounts[k] = index * 3;
+	
+	int recvCounts[numprocs] = {0};
+	MPI_Alltoall(sendCounts, 1, MPI_INT, recvCounts, 1, MPI_INT, MPI_COMM_WORLD);
+	
+	int sdispls[numprocs];
+	sdispls[0] = 0;
+	for(int i = 1; i < numprocs; i++){
+		sdispls[i] = sdispls[i-1] + sendCounts[i-1];
+	}
+
+	int rdispls[numprocs];
+	rdispls[0] = 0;
+	for(int i = 1; i < numprocs; i++){
+		rdispls[i] = rdispls[i-1] + recvCounts[i-1];
+	}
+
+	int lenRecv = 0;
+	for(int i = 0; i < numprocs; i++){
+		lenRecv += recvCounts[i];
+	}
+
+	uint32_t recvArray[lenRecv];
+	MPI_Alltoallv(sendArray, sendCounts, sdispls, MPI_INT, recvArray, recvCounts, rdispls, MPI_INT, MPI_COMM_WORLD);
+	
+	Edges2Partition.clear();
+	for(int i = 0; i < lenRecv; i+=3){
+		Edge e;
+		e.src.ver = recvArray[i];
+		e.dst.ver = recvArray[i+1];
+		Edges2Partition[e] = recvArray[i+2];
+	}
+}
+
 // 每个进程初始化
 void InstancePartitions::InstanceInit(){
 	// 对每个partition的初始化
@@ -118,6 +213,23 @@ void InstancePartitions::InstanceInit(){
 	getVRF();
 	getBalance();
 
+}
+
+// 每个进程初步边交换
+void InstancePartitions::InstanceExchange(){
+	getSmallDegreeVertices(3);
+	getEdges2Partition(3);
+	exchangeAllEdges(Edges2Partition);
+
+	for(int i = 0; i < partitions.size(); i++){
+		partitions[i]->edges.clear();
+	}
+
+	map<Edge, int>::iterator iter;
+	for(iter = Edges2Partition.begin(); iter != Edges2Partition.end(); iter++){
+		partitions[iter->second - startpart]->edges.push_back(iter->first);
+	}
+	updateAllPartitions();
 }
 
 // 每个进程迭代优化
@@ -252,6 +364,7 @@ void InstancePartitions::getAllHotVertices(){
 
 // 计算冷边的分配
 void InstancePartitions::computeEdgesMatchPartitions(){
+	// coldEdges2Partition.clear();
 	// 对每一条边进行处理
 	int all = 0, change = 0;
 	for(int i = 0; i < partitions.size(); i++){
@@ -306,7 +419,6 @@ double InstancePartitions::computerMatchScore(Edge e, int part){
 
 // 对冷边进行分发
 void InstancePartitions::distributeAllColdEdges(){
-	// coldEdges2Partition.clear();
 	vector<Edge> coldEdges;
 	map<Edge, int>::iterator iter;
 	for(iter = coldEdges2Partition.begin(); iter != coldEdges2Partition.end(); iter++){
@@ -424,7 +536,7 @@ void InstancePartitions::updateAllEdges(uint32_t* updateEdges, int len){
 // partition全局状态更新
 void InstancePartitions::updateAllPartitions(){
 	// 更新点集与点的局部度数
-	for(int i = 0; i < numparts[procid]; i++){
+	for(int i = 0; i < partitions.size(); i++){
 		partitions[i]->getVerticesAndDegree();
 	}
 	// 更新指标
