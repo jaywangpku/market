@@ -46,9 +46,16 @@ public:
 	}
 };
 
+// 小度点相同的边集合，便于统一分配
+struct EdgeSet{
+	vector<Edge> e;
+	uint32_t coreVertex;
+	uint32_t times;
+};
+
 class Partition{
 public:
-	void getVerticesAndDegree();
+	void getVerticesAndDegree();  // 更新点集合局部度信息
 	
 	void getVertexScore(InstancePartitions* ins_partition);
 	void getHotColdVertices(InstancePartitions* ins_partition, double hot, double cold); // 热点与冷点比例
@@ -62,8 +69,11 @@ public:
 	void printAllVertices();
 	void printAllEdges();
 
+	// 市场价值模型
+	void getSellEdge(InstancePartitions* ins_partition, int startDegree, int endDegree, double threshold);
+
 public:
-	vector<Edge> edges;
+	vector<Edge> edges;     // 核心
 	set<uint32_t> vertices;
 
 	vector<uint32_t> hotVertices;
@@ -77,6 +87,10 @@ public:
 
 	// 小度点交换阶段
 	vector<uint32_t> smallDegreeVertices;     // 该partition的小度点集合
+
+	// 市场价值模型
+	int money = 0;
+	vector<Edge> sellEdge;
 };
 
 // 每一个进程所拥有的全部partition 类
@@ -110,6 +124,9 @@ public:
 	void getEdges2Partition(uint32_t degree);
 	void exchangeAllEdges(map<Edge, int>& Edges2Partition);  // 接口可重用
 
+	// 市场价值模型
+	void arrangeInternalMarket();
+
 
 public:
 	
@@ -135,6 +152,10 @@ public:
 
 	// 小度点交换阶段
 	map<Edge, int> Edges2Partition;
+
+	// 市场价值模型
+	vector<Edge> internalMarket;              // 进程内部市场
+	map<uint32_t, EdgeSet> vertex2edgesets;   // 按边集组织的内部市场
 
 	double balance_RSD = 0;
 	double balance_MAX_MIN = 0;

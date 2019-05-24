@@ -200,6 +200,27 @@ void InstancePartitions::exchangeAllEdges(map<Edge, int>& Edges2Partition){
 	}
 }
 
+// 将内部市场中的边打包整理
+void InstancePartitions::arrangeInternalMarket(){
+	vertex2edgesets.clear();
+	for(int i = 0; i < internalMarket.size(); i++){
+		int src = internalMarket[i].src.ver;
+		int dst = internalMarket[i].dst.ver;
+		int ver = vertexDegree[src] < vertexDegree[dst] ? src : dst;
+		if(vertex2edgesets.count(ver) == 0){
+			EdgeSet edgeset;
+			edgeset.e.push_back(internalMarket[i]);
+			edgeset.coreVertex = ver;
+			edgeset.times = 1;
+			vertex2edgesets[ver] = edgeset;
+		}
+		else{
+			vertex2edgesets[ver].e.push_back(internalMarket[i]);
+			vertex2edgesets[ver].times += 1;
+		}
+	}
+}
+
 // 每个进程初始化
 void InstancePartitions::InstanceInit(){
 	// 对每个partition的初始化
@@ -217,19 +238,50 @@ void InstancePartitions::InstanceInit(){
 
 // 每个进程初步边交换
 void InstancePartitions::InstanceExchange(){
-	getSmallDegreeVertices(3);
-	getEdges2Partition(3);
-	exchangeAllEdges(Edges2Partition);
+	// if(procid == 0){
+	// 	map<uint32_t, uint32_t>::iterator iter;
+	// 	int k = 0;
+	// 	for(iter = vertexDegree.begin(); iter != vertexDegree.end(); iter++){
+	// 		if(iter->second > 1){
+	// 			continue;
+	// 		}
+	// 		k++;
+	// 	}
+	// 	cout << k << endl;
+	// }
+	// getSmallDegreeVertices(3);
+	// getEdges2Partition(3);
+	// exchangeAllEdges(Edges2Partition);
 
+	// for(int i = 0; i < partitions.size(); i++){
+	// 	partitions[i]->edges.clear();
+	// }
+
+	// map<Edge, int>::iterator iter;
+	// for(iter = Edges2Partition.begin(); iter != Edges2Partition.end(); iter++){
+	// 	partitions[iter->second - startpart]->edges.push_back(iter->first);
+	// }
+	// updateAllPartitions();
+
+	// 市场模型
 	for(int i = 0; i < partitions.size(); i++){
-		partitions[i]->edges.clear();
+		partitions[i]->getSellEdge(this, 1, 10, 0.3);
+		internalMarket.insert(internalMarket.end(), partitions[i]->sellEdge.begin(), partitions[i]->sellEdge.end());
+		partitions[i]->sellEdge.clear();
 	}
 
-	map<Edge, int>::iterator iter;
-	for(iter = Edges2Partition.begin(); iter != Edges2Partition.end(); iter++){
-		partitions[iter->second - startpart]->edges.push_back(iter->first);
-	}
-	updateAllPartitions();
+	// 对内部市场的边进行整理，相当于预处理，对相同小度点的边打包卖
+	arrangeInternalMarket();
+
+    // map<uint32_t, EdgeSet>::iterator iter;
+    // if(procid == 0)
+    // for(iter = vertex2edgesets.begin(); iter != vertex2edgesets.end(); iter++){
+    // 	cout << iter->first << " " << iter->second.times << endl;
+    // }
+
+	// 进行内部市场选购
+	
+	
 }
 
 // 每个进程迭代优化
@@ -619,6 +671,49 @@ void Partition::getColdEdges(double cold){
 	QuickSortEdge(edges, edgeSocre, 0, edges.size()-1);
 	coldEdges.assign(edges.begin(), edges.begin() + edges.size() * cold);
 	// cout << "Task: " << procid << " coldEdges: " << coldEdges.size() << endl;
+}
+
+// 市场价值模型
+void Partition::getSellEdge(InstancePartitions* ins_partition, int startDegree, int endDegree, double threshold){
+	// 每次交换到最后面而不是删除，方便统一操作
+	int endEdges = edges.size() - 1;
+	for(int i = 0; i <= endEdges; i++){
+		uint32_t src = edges[i].src.ver;
+		uint32_t dst = edges[i].dst.ver;
+		uint32_t ver;
+		if(ins_partition->vertexDegree[src] < ins_partition->vertexDegree[dst]){
+			if(ins_partition->vertexDegree[src] > 1){
+				ver = src;
+			}
+			else{
+				ver = dst;
+			}
+		}
+		else{
+			if(ins_partition->vertexDegree[dst] > 1){
+				ver = dst;
+			}
+			else{
+				ver = src;
+			}
+		}
+		if(ins_partition->vertexDegree[ver] >= startDegree && ins_partition->vertexDegree[ver] <= endDegree){
+			if(vertexPartDegree[ver] / 1.0 / ins_partition->vertexDegree[ver] <= threshold){
+				swap(edges[endEdges], edges[i]);
+				i--;
+				endEdges--;
+			} 
+		}
+	}
+	sellEdge.clear();
+	sellEdge.assign(edges.begin() + endEdges + 1, edges.end());
+	edges.erase(edges.begin() + endEdges + 1, edges.end());
+	getVerticesAndDegree();
+	// for(int i = 0; i < sellEdge.size(); i++){
+	// 	money += 1.0/ins_partition->vertexDegree[sellEdge[i].src.ver];
+	// 	money += 1.0/ins_partition->vertexDegree[sellEdge[i].dst.ver];
+	// }
+	money += sellEdge.size();
 }
 
 // for debug
