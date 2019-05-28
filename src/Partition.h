@@ -156,6 +156,7 @@ public:
 	// 市场价值模型
 	vector<Edge> internalMarket;              // 进程内部市场
 	map<uint32_t, EdgeSet> vertex2edgesets;   // 按边集组织的内部市场
+	vector<EdgeSet> restOfInternalMarket;     // 内部市场没卖完剩下的
 
 	double balance_RSD = 0;
 	double balance_MAX_MIN = 0;

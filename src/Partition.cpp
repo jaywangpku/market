@@ -280,7 +280,24 @@ void InstancePartitions::InstanceExchange(){
     // }
 
 	// 进行内部市场选购
-	
+	map<uint32_t, EdgeSet>::iterator iter;
+	for(iter = vertex2edgesets.begin(); iter != vertex2edgesets.end(); iter++){
+		bool selled = false;
+		for(int i = 0; i < partitions.size(); i++){
+			// 达到了认购的条件
+			if(partitions[i]->vertices.find(iter->first) != partitions[i]->vertices.end() && \
+				partitions[i]->money + 10 > iter->second.times){
+				partitions[i]->edges.insert(partitions[i]->edges.end(), iter->second.e.begin(), iter->second.e.end());
+				partitions[i]->money -= iter->second.times;
+				selled = true;
+				break;
+			}
+		}
+		if(!selled){
+			// restOfInternalMarket.push_back(iter->second);
+			
+		}
+	}
 	
 }
 
