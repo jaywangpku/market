@@ -11,7 +11,12 @@ int main(int argc, char *argv[])
 	load_graph(argv[1], g);
 
 	// 代理商策略
-	
+	getSellEdge(g, 1, 10, 0.3);
+	arrangeInternalMarket(g);
+	buyEdges(g);
+
+
+
 
 
 	return 0;
