@@ -6,3 +6,6 @@ all:
 
 run:
 	./dealer ../datasets/Wiki-Vote.txt 100
+
+runhdrf:
+	./dealer ../datasets/Wiki-Vote-hdrf.txt 100

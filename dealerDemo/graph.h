@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <map>
+#include <algorithm>
 
 using namespace std;
 
@@ -39,10 +40,12 @@ struct Graph{
 
 	vector<Edge> internalMarket;
 	map<int, EdgeSet> vertex2Edgesets;   // 按边集组织的内部市场
+	vector<Edge> leftover;               // 没有卖完的边
 
 };
 
 void load_graph(char* filename, Graph& g);
+void load_graph_prepartition(char* filename, Graph& g);
 
 double getVRF(Graph& g);
 double getBalance(Graph& g);
@@ -51,5 +54,6 @@ void getVerticesAndDegree(subGraph& subg);
 void getSellEdge(Graph& g, int startDegree, int endDegree, double threshold);
 void arrangeInternalMarket(Graph& g);
 void buyEdges(Graph& g);
+void clearance(Graph& g);
 
 #endif
