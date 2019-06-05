@@ -252,6 +252,9 @@ void buyEdges(Graph& g){
 			}
 		}
 	}
+	for(int i = 0; i < g.subGraphs.size(); i++){
+		getVerticesAndDegree(g.subGraphs[i]);
+	}
 }
 
 // 清仓，以边为单位来卖
@@ -272,4 +275,114 @@ void clearance(Graph& g){
 			g.leftover.pop_back();
 		}
 	}
+	for(int i = 0; i < g.subGraphs.size(); i++){
+		getVerticesAndDegree(g.subGraphs[i]);
+	}
+}
+
+// 获取需要重新经过greedy的边
+void getReGreedyEdges(Graph& g, double k){
+	g.reGreedyEdges.clear();
+	for(int i = 0; i < g.subGraphs.size(); i++){
+		random_shuffle(g.subGraphs[i].edges.begin(), g.subGraphs[i].edges.end());
+		g.reGreedyEdges.insert(g.reGreedyEdges.end(), g.subGraphs[i].edges.begin() + g.subGraphs[i].edges.size()*k, g.subGraphs[i].edges.end());
+		int edgesNUM = g.subGraphs[i].edges.size();
+		g.subGraphs[i].edges.erase(g.subGraphs[i].edges.begin() + g.subGraphs[i].edges.size()*k, g.subGraphs[i].edges.end());
+		g.subGraphs[i].money += edgesNUM - g.subGraphs[i].edges.size();
+		getVerticesAndDegree(g.subGraphs[i]);
+	}
+}
+
+// 从集合中选出最小的k个
+set<int> sellectKsmallPart(Graph& g, set<int> parts, int k){
+	map<int, int> tm; // 装载过程就直接按照key排好序了
+	set<int>::iterator iter;
+	for(iter = parts.begin(); iter != parts.end(); iter++){
+		tm[g.subGraphs[*iter].edges.size()] = *iter;
+	}
+	set<int> ans;
+	map<int, int>::iterator it = tm.begin();
+	for(int i = 0; i < k; i++){
+		ans.insert(it->second);
+		it++;
+	}
+	return ans;
+}
+
+// 贪心随机分配过程
+void greedySingleRandom(Graph& g){
+	random_shuffle(g.reGreedyEdges.begin(), g.reGreedyEdges.end());
+	// 对每一条边采用贪心分配策略
+	for(int i = 0; i < g.reGreedyEdges.size(); i++){
+		int src = g.reGreedyEdges[i].src;
+		int dst = g.reGreedyEdges[i].dst;
+		set<int> srcPart;
+		set<int> dstPart;
+		for(int j = 0; j < g.subGraphs.size(); j++){
+			if(g.subGraphs[j].vertices.count(src) > 0){
+				srcPart.insert(j);
+			}
+			if(g.subGraphs[j].vertices.count(dst) > 0){
+				dstPart.insert(j);
+			}
+		}
+		
+		set<int> parts;
+		// src 和 dst 均没出现过
+		// 可以留下来放在之后再分配 ?
+		if(srcPart.size() == 0 && dstPart.size() == 0){
+			set<int> partTemp;
+			for(int i = 0; i < g.subGraphs.size(); i++){
+				partTemp.insert(i);
+			}
+			parts = sellectKsmallPart(g, partTemp, 1);
+		}
+		// src没有出现过dst出现过
+		else if(srcPart.size() == 0 && dstPart.size() != 0){
+			parts = sellectKsmallPart(g, dstPart, 1);
+		}
+		// src出现过dst没有出现过
+		else if(srcPart.size() != 0 && dstPart.size() == 0){
+			parts = sellectKsmallPart(g, srcPart, 1);
+		}
+		// src和dst均出现过
+		else{
+			set<int> intersection;
+			set<int> convergence;
+			set_intersection(srcPart.begin(), srcPart.end(), dstPart.begin(), dstPart.end(), inserter(intersection, intersection.begin()));
+			set_union(srcPart.begin(), srcPart.end(), dstPart.begin(), dstPart.end(), inserter(convergence, convergence.begin()));
+			// 有交集
+			if(intersection.size() > 0){
+				parts = sellectKsmallPart(g, intersection, 1);
+			}
+			// 无交集
+			else{
+				// 放到src对应的part中
+				if(g.vertex2AllDegree[src] < g.vertex2AllDegree[dst]){
+					parts = sellectKsmallPart(g, srcPart, 1);
+				}
+				// 放到dst对应的part中
+				else{
+					parts = sellectKsmallPart(g, dstPart, 1);
+				}
+			}
+		}
+		int part = *parts.begin();
+		g.subGraphs[part].edges.push_back(g.reGreedyEdges[i]);
+		g.subGraphs[part].vertices.insert(src);
+		g.subGraphs[part].vertices.insert(dst);
+		if(g.subGraphs[part].vertex2SubDegree.count(src) == 0){
+			g.subGraphs[part].vertex2SubDegree[src] = 1;
+		}
+		else{
+			g.subGraphs[part].vertex2SubDegree[src] += 1;
+		}
+		if(g.subGraphs[part].vertex2SubDegree.count(dst) == 0){
+			g.subGraphs[part].vertex2SubDegree[dst] = 1;
+		}
+		else{
+			g.subGraphs[part].vertex2SubDegree[dst] += 1;
+		}
+	}
+	g.reGreedyEdges.clear();
 }

@@ -7,6 +7,7 @@
 #include <set>
 #include <map>
 #include <algorithm>
+#include <ctime>
 
 using namespace std;
 
@@ -27,7 +28,7 @@ struct subGraph{
 	set<int> vertices;
 	map<int, int> vertex2SubDegree; // 局部度信息
 
-	int money = 0;
+	int money = 10;
 
 };
 
@@ -42,6 +43,8 @@ struct Graph{
 	map<int, EdgeSet> vertex2Edgesets;   // 按边集组织的内部市场
 	vector<Edge> leftover;               // 没有卖完的边
 
+	vector<Edge> reGreedyEdges;          // 需要重新经过greedy的边
+
 };
 
 void load_graph(char* filename, Graph& g);
@@ -55,5 +58,9 @@ void getSellEdge(Graph& g, int startDegree, int endDegree, double threshold);
 void arrangeInternalMarket(Graph& g);
 void buyEdges(Graph& g);
 void clearance(Graph& g);
+
+void getReGreedyEdges(Graph& g, double k);
+void greedySingleRandom(Graph& g);
+set<int> sellectKsmallPart(Graph& g, set<int> parts, int k);
 
 #endif
