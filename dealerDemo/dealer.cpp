@@ -15,14 +15,15 @@ int main(int argc, char *argv[])
 	
 	cout << getVRF(g) << endl;
 	
-	for(int i = 0; i < 1000; i++){
+	int k = 0;
+	while(1){
 		getReGreedyEdges(g, 0.8);
 		greedySingleRandom(g);
 		int alledges = 0;
 		for(int i = 0; i < g.subGraphs.size(); i++){
 			alledges += g.subGraphs[i].edges.size();
 		}
-		cout << alledges << " " << getVRF(g) << " " << getBalance(g) << endl; 
+		cout << ++k << " " << getBalance(g) << " " << getVRF(g) << endl << endl; 
 	}
 
 	return 0;
